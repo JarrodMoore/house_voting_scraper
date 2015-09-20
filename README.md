@@ -5,7 +5,7 @@ The program uses the library of congress website to find the voting record for a
 
 Command line arguments:
 * year: The year whose data you want to download. Must be the last argument.
-* --ignore_NP: The program does not write data for representatives who have any votes recorded as NP
+* --ignore_NP: The program does not write data for representatives who have any votes recorded as NP.
 * --absTo5: Stores the value of present or not voting as .5.
 
 The csv is set up as follows.
