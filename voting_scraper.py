@@ -3,6 +3,7 @@ import itertools
 from lxml import html
 from time import sleep
 import os
+import argparse
 
 URL_PREFIX = "http://clerk.house.gov/evs/"
 URL_MIDFIX = "/roll"
@@ -23,9 +24,13 @@ def pageToTupleArray(page):
     names_and_votes_list = [item for item in page_list if '\r' not in item]
     return groupN(names_and_votes_list, 2)
 
-def get_votes(year):
+def get_votes(year, absTo5):
     VY = VotingYear(year)
     bill_num = 3
+    if absTo5:
+        absValue = str(.5)
+    else:
+        absValue = 'ABS'
     while True:
         request_url = URL_PREFIX + str(year) + URL_MIDFIX\
             + '{0:03d}'.format(bill_num) + URL_POSTFIX
@@ -53,7 +58,7 @@ def get_votes(year):
                 elif voter[1] == 'Nay' or voter[1] == 'No':
                     VY.voter_dict[voter[0]].append(str(0))
                 else:
-                    VY.voter_dict[voter[0]].append('ABS')
+                    VY.voter_dict[voter[0]].append(absValue)
             else:
                 VY.voter_dict[voter[0]] = [voter[0].replace(',', ' ')]
                 for prior_votes in range(bill_num-3):
@@ -63,7 +68,7 @@ def get_votes(year):
                 elif voter[1] == 'Nay':
                     VY.voter_dict[voter[0]].append(str(0))
                 else:
-                    VY.voter_dict[voter[0]].append('ABS')
+                    VY.voter_dict[voter[0]].append(absValue)
         names_and_votes_dict = dict(names_and_votes)
         for voter in VY.voter_dict:
             if voter not in names_and_votes_dict:
@@ -71,16 +76,30 @@ def get_votes(year):
         bill_num += 1
         sleep(1)
     return VY
-def save_votes(VY):
+def save_votes(VY, ignore_NP):
     out_file = open(str(VY.year) + '.csv', 'w')
     for bill_name in VY.bill_names:
         out_file.write((bill_name.replace(',', ' ') + ',').encode('utf8'))
     out_file.seek(-1, os.SEEK_END)
     out_file.write('\n')
-    for rep in VY.voter_dict:
-        out_file.write((','.join(VY.voter_dict[rep])+'\n').encode('utf8'))
+    if ignore_NP:
+        for rep in VY.voter_dict:
+            if 'NP' not in VY.voter_dict[rep]:
+                out_file.write((','.join(VY.voter_dict[rep])+'\n').encode('utf8'))
+    else:
+        for rep in VY.voter_dict:
+            out_file.write((','.join(VY.voter_dict[rep])+'\n').encode('utf8'))
     out_file.close()
 if __name__ == '__main__':
-    year = raw_input('Enter the year: ')
-    VY = get_votes(year)
-    save_votes(VY)
+    parser = argparse.ArgumentParser()
+    parser.add_argument('year',\
+        help='The year whose voting data is to be downloaded')
+    parser.add_argument('--ignore_NP', action='store_true',\
+        help='Do not save any rows which have the value \'NP\'')
+    parser.add_argument('--absTo5', action='store_true',\
+        help='Store ABS value as .5')
+    args = parser.parse_args()
+    ignore_NP =  args.ignore_NP
+    year = args.year
+    VY = get_votes(year, args.absTo5)
+    save_votes(VY, ignore_NP)
